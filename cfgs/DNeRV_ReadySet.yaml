@@ -1,6 +1,6 @@
 seed: 5
 #----change to your own dataset path----#
-dataset_path: /mnt/tmp/UVG/Beauty
+dataset_path: /mnt/tmp/UVG/ReadySetGo
 
 dataset_type: all 
 model:

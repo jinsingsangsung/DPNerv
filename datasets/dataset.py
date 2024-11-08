@@ -3,9 +3,11 @@ import numpy as np
 import torch
 from PIL import Image
 from torch.utils.data import Dataset
+from torchvision import transforms
+import torch.nn.functional as F
 
 class CustomDataSet(Dataset):
-	def __init__(self, main_dir, transform, height=720, width=1280, train=True):
+	def __init__(self, main_dir, transform, height=720, width=1280, train=True, dec_strds=[5, 4, 4, 3, 2]):
 		self.main_dir = main_dir
 		self.transform = transform
 		frame_idx, self.frame_path = [], []
@@ -31,6 +33,7 @@ class CustomDataSet(Dataset):
 
 		self.height = height
 		self.width = width
+		self.dec_strds = dec_strds
 
 	def __len__(self):
 		return len(self.frame_idx)
@@ -59,6 +62,15 @@ class CustomDataSet(Dataset):
 		
 		if image.size != (self.width, self.height):
 			image = image.resize((self.width, self.height))
+			image_p = image_p.resize((self.width, self.height))
+			image_f = image_f.resize((self.width, self.height))
+			image_pp = image_pp.resize((self.width, self.height))
+			image_ff = image_ff.resize((self.width, self.height))
+			# image = transforms.CenterCrop((self.height, self.width))(image)
+			# image_p = transforms.CenterCrop((self.height, self.width))(image_p)
+			# image_f = transforms.CenterCrop((self.height, self.width))(image_f)
+			# image_pp = transforms.CenterCrop((self.height, self.width))(image_pp)
+			# image_ff = transforms.CenterCrop((self.height, self.width))(image_ff)
 
 		tensor_image = self.transform(image)
 		tensor_image_p = self.transform(image_p)
@@ -76,7 +88,9 @@ class CustomDataSet(Dataset):
 			"img_p" : tensor_image_p, #3 h w
 			"img_f" : tensor_image_f, #3 h w
 		}
+        
+		for i, strd in enumerate(self.dec_strds):
+			tensor_image = F.avg_pool2d(tensor_image, kernel_size=strd, stride=strd)
+			data_dict[f'img_{i+1}'] = tensor_image
+
 		return data_dict
-
-
-

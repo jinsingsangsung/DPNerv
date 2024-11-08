@@ -4,6 +4,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from .model_utils import ActivationLayer
+from .mambaconv import MambaConv2d
 from timm.models.layers import trunc_normal_, DropPath
 
 
@@ -94,16 +95,18 @@ class D_NeRV_Generator(nn.Module):
 		self.r_c    = 1.2
 		self.c_h    = int(cfg['height']/(5*4*3*2*2))
 		self.c_w    = int(cfg['width']/(5*4*3*2*2))
-
+		self.stride_list = cfg['stride_list']
 		self.encoder_layers, self.decoder_layers, self.dec_head_layers = [nn.ModuleList() for _ in range(3)]
 		self.diff_enc_layers = nn.ModuleList()
 		self.diff_dec_layers = nn.ModuleList()
+		self.pre_enc_layers = nn.ModuleList()
 
 		for k, stride in enumerate(cfg['encoder_list']):
 			if k == 0:
 					c0 = 3
 			else:
 				c0 = self.c1_dim
+				self.pre_enc_layers.append(MambaConv2d(3, c0, kernel_size=cfg['encoder_list'][k], stride=cfg['encoder_list'][k], dim_preserve=True, exag=k<2))
 
 			self.encoder_layers.append(nn.Conv2d(c0, self.c1_dim, kernel_size=cfg['encoder_list'][k], stride=cfg['encoder_list'][k]))
 			self.encoder_layers.append(LayerNorm(self.c1_dim,t_3d=False, eps=1e-6, data_format="channels_first"))
@@ -160,17 +163,24 @@ class D_NeRV_Generator(nn.Module):
 			"img_gt": tensor_image, C H W
 			"img_p": tensor_image_p, #3 h w
 			"img_f": tensor_image_f, #3 h w
+			"img_i": tensor_image_i, #3 h_i w_i
 		'''
 		content_embedding = data['img_gt']
 		content_p = data['img_p']
 		content_f = data['img_f']
 		content_gt = data['img_gt']
-
+		content_list = []
+		for i in range(len(self.stride_list)-1):
+			content_list.append(self.pre_enc_layers[i](data[f'img_{i+1}']))
+		j = 0
 		# ---------- encoder ---------- #
 		for encoder_layer in self.encoder_layers:
 			content_embedding = encoder_layer(content_embedding)
+			if isinstance(encoder_layer, LayerNorm):
+				if len(content_list) > j:
+					content_embedding = content_embedding + content_list[j]
+					j += 1
 		cnt_output   = self.enc_embedding_layer(content_embedding)
-
 		diff_p = content_gt - content_p
 		diff_f = content_f - content_gt
 		diff =  torch.stack([diff_p, diff_f], dim=2)
