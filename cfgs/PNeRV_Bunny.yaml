@@ -1,0 +1,33 @@
+seed : 10
+#----change to your own dataset path----#
+dataset_path: /home/nsml/MambaNeRV/data/bunny
+
+dataset_type: all 
+model:
+  model_name: P_NeRV
+  act: gelu
+  encoder_list: [5, 4, 4, 2, 2]
+  stride_list: [5, 4, 4, 2, 2]
+  diff_enc_list: [4, 4, 2]
+  c1: 64
+  d: 16
+  kfc_h_w_c : [20, 40, 105]
+  kfc_stride : [2, 3, 2, 2, 2]
+  height: 640
+  width: 1280
+train_batchsize: 1
+val_batchsize: 1
+workers: 4
+epoch: 300
+
+optim:
+  optim_type: Adam
+  lr: 0.0005
+  beta1: 0.5
+  beta2: 0.999
+  lr_schedule: warmup_cosine
+  lr_point: 0.2
+loss: L2
+print_freq: 200 # every 50 steps in each epoch to print
+eval_freq: 100  # every 50 epochs to conduct evaluation
+
