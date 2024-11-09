@@ -8,7 +8,7 @@ model:
   act: gelu
   encoder_list: [5, 4, 4, 2, 2]
   stride_list: [5, 4, 4, 2, 2]
-  diff_enc_list: [4, 4, 2]
+  diff_enc_list: [4, 2, 2]
   c1: 64
   d: 16
   kfc_h_w_c : [20, 40, 105]
