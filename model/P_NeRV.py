@@ -4,6 +4,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from .model_utils import ActivationLayer
+from .mambaconv import MambaConv2d
 from torch import nn
 from timm.models.layers import DropPath
 
@@ -126,10 +127,13 @@ class P_NeRV_Generator(nn.Module):
 
 		self.c1_dim = cfg['c1'] #64
 		self.d_dim  = cfg['d']  #16
+		self.stride_list = cfg['stride_list']
 
 		# BUILD CONV LAYERS
 		self.dec_layers, self.enc_layers, self.dec_head_layers = [nn.ModuleList() for _ in range(3)]
 		self.dec_exc_layers = nn.ModuleList()
+		self.pre_enc_layers = nn.ModuleList()
+		self.first_mamba_conv = MambaConv2d(3, 3, 5, 5, dim_preserve=True, d_state=16, exag=False)
 
 		self.dec_shortcuts = nn.ModuleList()
 		self.dec_bsm_z = nn.ModuleList()
@@ -148,6 +152,8 @@ class P_NeRV_Generator(nn.Module):
 				c0 = 3
 			else:
 				c0 = self.c1_dim
+				self.pre_enc_layers.append(MambaConv2d(3, self.c1_dim, kernel_size=cfg['encoder_list'][k], stride=cfg['encoder_list'][k], dim_preserve=True))
+
 			self.enc_layers.append(nn.Conv2d(c0, self.c1_dim, kernel_size=cfg['encoder_list'][k], stride=cfg['encoder_list'][k]))
 			self.enc_layers.append(LayerNorm(self.c1_dim, eps=1e-6, data_format="channels_first"))
 			self.enc_layers.append(ConvNeXtBlock(dim=self.c1_dim))
@@ -207,8 +213,13 @@ class P_NeRV_Generator(nn.Module):
 		content_p  = data['img_p']
 		content_f  = data['img_f']
 		content_gt = data['img_gt']
+		content_list = []
+		content_embedding = self.first_mamba_conv(content_embedding)
 
 		#----------------ENCODER----------------#
+		for i in range(len(self.stride_list)-1):
+			content_list.append(self.pre_enc_layers[i](data[f'img_{i+1}']))
+
 		diff_p = content_gt - content_p
 		diff_f = content_f - content_gt
 		diff =  torch.stack([diff_p, diff_f], dim=2)
@@ -218,8 +229,14 @@ class P_NeRV_Generator(nn.Module):
 			diff = diff_enc_layer(diff)
 		diff = self.enc_diff_ebd_layer(diff)
 
+		j = 0
 		for convnext_layer in self.enc_layers:
 			content_embedding = convnext_layer(content_embedding) 
+			if isinstance(convnext_layer, nn.Conv2d):
+				if len(content_list) > j:
+					content_embedding = content_embedding + content_list[j]
+					j += 1
+			
 		output   = self.enc_ebd_layer(content_embedding)
 
 		#----------------DECODER----------------#

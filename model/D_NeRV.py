@@ -100,6 +100,7 @@ class D_NeRV_Generator(nn.Module):
 		self.diff_enc_layers = nn.ModuleList()
 		self.diff_dec_layers = nn.ModuleList()
 		self.pre_enc_layers = nn.ModuleList()
+		self.first_mamba_conv = MambaConv2d(3, 3, 5, 5, dim_preserve=True, d_state=16, exag=False)
 
 		for k, stride in enumerate(cfg['encoder_list']):
 			if k == 0:
@@ -174,9 +175,10 @@ class D_NeRV_Generator(nn.Module):
 			content_list.append(self.pre_enc_layers[i](data[f'img_{i+1}']))
 		j = 0
 		# ---------- encoder ---------- #
+		content_embedding = self.first_mamba_conv(content_embedding)
 		for encoder_layer in self.encoder_layers:
 			content_embedding = encoder_layer(content_embedding)
-			if isinstance(encoder_layer, LayerNorm):
+			if isinstance(encoder_layer, nn.Conv2d):
 				if len(content_list) > j:
 					content_embedding = content_embedding + content_list[j]
 					j += 1
