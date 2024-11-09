@@ -1,6 +1,6 @@
 seed : 10
 #----change to your own dataset path----#
-dataset_path: /mnt/tmp/UVG/YachtRide
+dataset_path: /mnt/tmp/UVG/ReadySteadyGo
 
 dataset_type: all 
 model:

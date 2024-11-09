@@ -1,6 +1,6 @@
 seed : 10
 #----change to your own dataset path----#
-dataset_path: /mnt/tmp/UVG/YachtRide
+dataset_path: /mnt/tmp/UVG/Bosphorus
 
 dataset_type: all 
 model:
@@ -30,5 +30,4 @@ optim:
 loss: L2
 print_freq: 200 # every 50 steps in each epoch to print
 eval_freq: 100  # every 50 epochs to conduct evaluation
-
 
