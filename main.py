@@ -71,8 +71,8 @@ def main(args):
 	writer = SummaryWriter(os.path.join(args.output_dir, 'tensorboard_{}'.format(args.time_str)))
 	img_transform = transforms.ToTensor()
 
-	dataset_train = dataset_dict[cfg['dataset_type']](main_dir=cfg['dataset_path'], transform=img_transform,height=cfg['model']['height'],width=cfg['model']['width'], train=True)
-	dataset_val = dataset_dict[cfg['dataset_type']](main_dir=cfg['dataset_path'], transform=img_transform, height=cfg['model']['height'], width=cfg['model']['width'], train=False)
+	dataset_train = dataset_dict[cfg['dataset_type']](main_dir=cfg['dataset_path'], transform=img_transform, height=cfg['model']['height'], width=cfg['model']['width'], train=True, dec_strds=cfg['model']["stride_list"])
+	dataset_val = dataset_dict[cfg['dataset_type']](main_dir=cfg['dataset_path'], transform=img_transform, height=cfg['model']['height'], width=cfg['model']['width'], train=False, dec_strds=cfg['model']["stride_list"])
 
 	sampler_train = DistributedSampler(dataset_train) if args.distributed else None
 	sampler_val = DistributedSampler(dataset_val) if args.distributed else None
@@ -95,8 +95,13 @@ def main(args):
 	]
 
 	optim_cfg = cfg['optim']
-	optimizer = optim.Adam(param_dicts, lr=optim_cfg['lr'], betas=(optim_cfg['beta1'], optim_cfg['beta2']))
-
+	if cfg['optim']['optim_type'] == 'Adam':
+		optimizer = optim.Adam(param_dicts, lr=optim_cfg['lr'], betas=(optim_cfg['beta1'], optim_cfg['beta2']))
+	elif cfg['optim']['optim_type'] == 'AdamW':
+		optimizer = optim.AdamW(param_dicts, lr=optim_cfg['lr'], betas=(optim_cfg['beta1'], optim_cfg['beta2']), weight_decay=cfg['weight_decay'])
+	elif cfg['optim']['optim_type'] == 'Lion':
+		from lion_pytorch import Lion
+		optimizer = Lion(model.parameters(), lr=optim_cfg['lr'], betas=(optim_cfg['beta1'], optim_cfg['beta2']), weight_decay=0.)
 	if args.distributed:
 		model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.gpu])
 		model_without_ddp = model.module
